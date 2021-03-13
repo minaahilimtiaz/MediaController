@@ -8,52 +8,60 @@
  * @format
  */
 import React, {useState, useRef} from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, View} from 'react-native';
 import Video from 'react-native-video';
-import MediaControls, {PLAYER_STATES} from 'react-native-media-controls';
+import MediaPanel from './components/mediaPanel';
+import {PlayerStates} from './helper';
 
 const App = () => {
   let videoPlayer = useRef(null);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [currentTime, setCurrentTime] = useState(1);
+  const [duration, setDuration] = useState<number>(1);
   const [isLoading, setIsLoading] = useState(true);
   const [paused, setPaused] = useState(false);
-  const [playerState, setPlayerState] = useState(PLAYER_STATES.PLAYING);
-  const [screenType, setScreenType] = useState('content');
+  const [playerState, setPlayerState] = useState(PlayerStates.Playing);
 
+  const onMediaButtonClick = () => {
+    if (playerState === PlayerStates.Ended) {
+      onReplay();
+    } else {
+      onPaused();
+    }
+  };
   const onSeek = (seek: number) => {
     videoPlayer.current?.seek(seek);
   };
 
-  const onPaused = (state: PLAYER_STATES) => {
+  const onPaused = () => {
+    if (paused) {
+      setPlayerState(PlayerStates.Playing);
+    } else {
+      setPlayerState(PlayerStates.Paused);
+    }
     setPaused(!paused);
-    setPlayerState(state);
   };
 
   const onReplay = () => {
-    setPlayerState(PLAYER_STATES.PLAYING);
-    videoPlayer.current?.seek(0);
+    onSeek(6);
+    setPaused(false);
+    setPlayerState(PlayerStates.Playing);
   };
 
-  const onSeeking = (time: number) => setCurrentTime(time);
-
-  const onFullScreen = () => {
-    setIsFullScreen(isFullScreen);
-    if (screenType === 'content') {
-      setScreenType('cover');
-    } else {
-      setScreenType('content');
-    }
+  const onSeekStarted = () => {
+    setPaused(true);
+    setPlayerState(PlayerStates.Paused);
   };
 
   const onProgress = (data: {currentTime: number}) => {
-    if (!isLoading && playerState !== PLAYER_STATES.ENDED) {
+    if (!isLoading && playerState !== PlayerStates.Ended) {
       setCurrentTime(data.currentTime);
     }
   };
 
-  const onEnd = () => setPlayerState(PLAYER_STATES.ENDED);
+  const onEnd = () => {
+    setPlayerState(PlayerStates.Ended);
+    setPaused(true);
+  };
 
   const onLoad = (data: {duration: number}) => {
     setDuration(data.duration);
@@ -71,8 +79,6 @@ const App = () => {
         onProgress={onProgress}
         paused={paused}
         ref={videoPlayer}
-        resizeMode={screenType}
-        onFullScreen={isFullScreen}
         source={{
           uri:
             'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
@@ -80,20 +86,14 @@ const App = () => {
         style={styles.mediaPlayer}
         volume={100}
       />
-      <MediaControls
-        isFullScreen={isFullScreen}
-        duration={duration}
-        isLoading={isLoading}
-        containerStyle={styles.mediaControls}
-        mainColor="red"
-        onFullScreen={onFullScreen}
-        onPaused={onPaused}
-        onReplay={onReplay}
-        onSeek={onSeek}
-        onSeeking={onSeeking}
+
+      <MediaPanel
         playerState={playerState}
-        progress={currentTime}
-        children={<Text />} //tbd how to pass empty value
+        currentTime={currentTime}
+        duration={duration}
+        onClick={onMediaButtonClick}
+        onSeekStarted={onSeekStarted}
+        onSeekCompleted={onSeek}
       />
     </View>
   );
@@ -120,6 +120,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   mediaControls: {
-    marginBottom: 100,
+    position: 'absolute',
+    left: 0,
+    top: 100,
+    bottom: 0,
+    right: 0,
   },
 });
